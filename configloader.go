@@ -151,6 +151,16 @@ func parseEnvTag(tag string) []string {
 }
 
 func setFieldValue(field reflect.Value, value string) error {
+	// Verifica primeiro se é time.Duration (que é um tipo alias de int64)
+	if field.Type() == reflect.TypeOf(time.Duration(0)) {
+		duration, err := time.ParseDuration(value)
+		if err != nil {
+			return fmt.Errorf("invalid duration value '%s': %w", value, err)
+		}
+		field.SetInt(int64(duration))
+		return nil
+	}
+
 	switch field.Kind() {
 	case reflect.String:
 		field.SetString(value)
@@ -158,14 +168,14 @@ func setFieldValue(field reflect.Value, value string) error {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		intValue, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
-			return fmt.Errorf("invalid integer value: %w", err)
+			return fmt.Errorf("invalid integer value '%s': %w", value, err)
 		}
 		field.SetInt(intValue)
 
 	case reflect.Bool:
 		boolValue, err := parseBool(value)
 		if err != nil {
-			return fmt.Errorf("invalid boolean value: %w", err)
+			return fmt.Errorf("invalid boolean value '%s': %w", value, err)
 		}
 		field.SetBool(boolValue)
 
@@ -177,16 +187,12 @@ func setFieldValue(field reflect.Value, value string) error {
 			return fmt.Errorf("unsupported slice type: %s", field.Type().Elem().Kind())
 		}
 
-	case reflect.Struct:
-		if field.Type() == reflect.TypeOf(time.Duration(0)) {
-			duration, err := time.ParseDuration(value)
-			if err != nil {
-				return fmt.Errorf("invalid duration: %w", err)
-			}
-			field.Set(reflect.ValueOf(duration))
-		} else {
-			return fmt.Errorf("unsupported struct type: %s", field.Type())
+	case reflect.Float32, reflect.Float64:
+		floatValue, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return fmt.Errorf("invalid float value '%s': %w", value, err)
 		}
+		field.SetFloat(floatValue)
 
 	default:
 		return fmt.Errorf("unsupported field type: %s", field.Kind())
