@@ -95,7 +95,7 @@ func FindAndLoad(config any) error {
 	return loadFromEnv(config, true)
 }
 
-func loadFromEnv(config any, useSystem bool) error {
+func loadFromEnv(config interface{}, useSystem bool) error {
 	v := reflect.ValueOf(config)
 	if v.Kind() != reflect.Ptr || v.Elem().Kind() != reflect.Struct {
 		return fmt.Errorf("config must be a pointer to a struct")
@@ -122,13 +122,17 @@ func loadFromEnv(config any, useSystem bool) error {
 		}
 
 		// Lógica de default/required
-		if value == "" && len(parts) > 1 {
-			for _, part := range parts[1:] {
-				if part == "required" {
-					validationErrors = append(validationErrors, fmt.Sprintf("%s is required", envName))
-				} else if value == "" {
-					value = part // Usa o default
-				}
+		defaultValue := ""
+		if len(parts) > 1 {
+			defaultValue = parts[1]
+		}
+
+		if value == "" {
+			if defaultValue == "required" {
+				validationErrors = append(validationErrors, fmt.Sprintf("%s is required", envName))
+				continue
+			} else if defaultValue != "" {
+				value = defaultValue
 			}
 		}
 
@@ -147,9 +151,15 @@ func loadFromEnv(config any, useSystem bool) error {
 }
 
 func parseEnvTag(tag string) []string {
-	return strings.Split(tag, ",")
-}
+	// Divide a tag em partes, mas preserva o valor default completo
+	parts := strings.SplitN(tag, ",", 2)
+	if len(parts) == 1 {
+		return parts
+	}
 
+	// Retorna apenas [nome, valor_default]
+	return []string{parts[0], parts[1]}
+}
 func setFieldValue(field reflect.Value, value string) error {
 	// Verifica primeiro se é time.Duration (que é um tipo alias de int64)
 	if field.Type() == reflect.TypeOf(time.Duration(0)) {
@@ -205,7 +215,7 @@ func parseBool(value string) (bool, error) {
 	switch strings.ToLower(value) {
 	case "true", "1", "yes", "on", "t":
 		return true, nil
-	case "false", "0", "no", "off", "f":
+	case "false", "0", "no", "off", "f", "":
 		return false, nil
 	default:
 		return false, fmt.Errorf("invalid boolean value: %s", value)
@@ -216,7 +226,19 @@ func parseStringSlice(value string) []string {
 	if value == "" {
 		return []string{}
 	}
-	return strings.Split(value, ",")
+
+	// Divide por vírgula e remove espaços em branco
+	parts := strings.Split(value, ",")
+	result := make([]string, 0, len(parts))
+
+	for _, part := range parts {
+		cleaned := strings.TrimSpace(part)
+		if cleaned != "" {
+			result = append(result, cleaned)
+		}
+	}
+
+	return result
 }
 
 // SPrint returns a string representation of the environment configuration
