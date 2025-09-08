@@ -2,7 +2,7 @@ Requisitos de Versão
 Go 1.18 ou superior é necessário para utilizar esta biblioteca.
 
 📦 Instalação
-go get github.com/yourusername/envconfig
+go get github.com/wesleysantana/config-loader
 
 🚀 Uso Rápido
 ```go
@@ -13,7 +13,7 @@ import (
     "log"
     "time"
     
-    "github.com/yourusername/envconfig"
+    "github.com/wesleysantana/config-loader"
 )
 
 type Config struct {
